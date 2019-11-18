@@ -1,5 +1,6 @@
 [![npm version](https://badge.fury.io/js/%40mindspace-io%2Futils.svg)](https://badge.fury.io/js/%40mindspace-io%2Futils)
-[![GitHub version](https://badge.fury.io/gh/thomasburleson%2Fmindspace-utils.svg)](https://badge.fury.io/gh/thomasburleson%2Fmindspace-utils)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/thomasburleson/mindspace-utils)
+
 
 # Mindspace Utilities
 
