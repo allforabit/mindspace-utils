@@ -1,3 +1,6 @@
+[![npm version](https://badge.fury.io/js/%40mindspace-io%2Futils.svg)](https://badge.fury.io/js/%40mindspace-io%2Futils)
+[![GitHub version](https://badge.fury.io/gh/thomasburleson%2Fmindspace-utils.svg)](https://badge.fury.io/gh/thomasburleson%2Fmindspace-utils)
+
 # Mindspace Utilities
 
 This library provides TypeScript utilities for both Angular and React developers. Click the links below to view the detailed README(s) for each technology item.
