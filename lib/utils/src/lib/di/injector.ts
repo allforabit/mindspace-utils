@@ -1,5 +1,8 @@
-import { DependencyInjector, UndoChanges } from './injector.interfaces';
-import { Provider, TypeProvider, makeClassProvider } from './injector.interfaces';
+import { 
+  DependencyInjector, UndoChanges, Token,
+  Provider, TypeProvider 
+} from './injector.interfaces';
+
 
 /**
  * Utility function used to easily create 1..n injectors; each with thier
@@ -24,33 +27,32 @@ export function makeInjector(registry: (Provider | TypeProvider)[]): DependencyI
 class Injector implements DependencyInjector {
   private singletons = new WeakMap();
 
-  constructor(private providers: Provider[] = []) {
+  constructor(private providers: Provider[] = [], private parent?: DependencyInjector) {
     this.addProviders(providers);
   }
 
   /**
    * Lookup singleton instance using token
    * Optionally create instance and save as singleton if needed
+   * If not found, this will search a parent injector (if provided)
    */
-  get(token: any): any {
-    return this.findAndMakeInstance(token);
+  get(token: Token): any {
+    var inst = this.findAndMakeInstance(token);
+    return inst || (this.parent ? this.parent.get(token) : null);
   }
 
   /**
    * Create an unshared, non-cached instance of the token;
    * based on the Provider configuration
+   * If not found, then consider asking parent injector for the
+   * instance
    */
-  instanceOf(token: any): any {
-    const provider = this.findLastRegistration(token, this.providers);
-    const deps = provider && provider.deps ? provider.deps.map(it => this.instanceOf(it)) : [];
-    const makeWithClazz = (clazz: any) => (clazz ? new clazz(...deps) : null);
-    const makeWithFactory = (fn: () => any) => (fn ? fn.call(null, deps) : null);
-
-    return provider && ( provider.useValue
-      || makeWithClazz(provider.useClass) 
-      || makeWithFactory(provider.useFactory)
-      || makeWithClazz(provider.provide)  // fallback uses the token as a `class`
-    );
+  instanceOf(token: Token, askParent = true): any {
+    let result = this.instanceFromRegistry(token);
+    if (!result && askParent && this.parent) {
+      result = this.parent.instanceOf(token, askParent);
+    }
+    return result;
   }
 
   /**
@@ -83,7 +85,7 @@ class Injector implements DependencyInjector {
   /**
    * Find last Provider registration (last one wins)
    */
-  private findLastRegistration(token: any, list: Provider[]) {
+  private findLastRegistration(token: Token, list: Provider[]) {
     const registry = this.providers.filter(it => it.provide === token);
     return registry.length ? registry[registry.length - 1] : null;
   }
@@ -91,11 +93,42 @@ class Injector implements DependencyInjector {
   /**
    * Based on provider registration, create instance of token and save
    * as singleton value.
+   * NOTE: do not scan parent since we are caching singletons at this level only.
+   * 
    * @param token Class, value, or factory
    */
-  private findAndMakeInstance(token: any): any {
-    let result = this.singletons.get(token) || this.instanceOf(token);
-    this.singletons.set(token, result);
+  private findAndMakeInstance(token: Token): any {
+    let result = this.singletons.get(token) || this.instanceOf(token, false);
+    result && this.singletons.set(token, result);
+
     return result;
   }
+
+  private instanceFromRegistry(token:Token): any {
+    const provider = this.findLastRegistration(token, this.providers);
+    const deps = provider && provider.deps ? provider.deps.map(it => this.instanceOf(it)) : [];
+    const makeWithClazz = (clazz: any) => (clazz ? new clazz(...deps) : null);
+    const makeWithFactory = (fn: () => any) => (fn ? fn.call(null, deps) : null);
+
+    return provider && ( provider.useValue
+      || makeWithClazz(provider.useClass) 
+      || makeWithFactory(provider.useFactory)
+      || makeWithClazz(provider.provide)  // fallback uses the token as a `class`
+    );    
+  }
+}
+
+
+/**
+ * Internal utility used to normalized Provider entries
+ * during a `makeInjector()` call
+ * 
+ * @param token
+ */
+function makeClassProvider(token:any): Provider {
+  return {
+    provide: token,
+    useClass: token,
+    deps: [...token['deps']],
+  };
 }
